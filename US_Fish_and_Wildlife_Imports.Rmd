@@ -1,0 +1,191 @@
+---
+title: "U.S. Fish and Wildlife Imports"
+output: github_document
+theme: sandstone
+fig_caption: yes
+df_print: tibble
+html_notebook: default
+pdf_document: default
+---
+
+This dataset describing wildlife imports between 2000-2014 was collected by the U.S. Fish and Wildlife Services and cleaned by Law Enforcement Management Information Systems (LEMIS). The EDA below focused on the fish taxa.
+
+---
+
+Installing packages and loading libraries
+
+```{r}
+
+library(ggplot2)
+library(tidyverse)
+library(skimr)
+
+
+```
+
+
+Set the working directory
+```{r}
+setwd("~/Documents/R/USFWS")
+
+```
+
+Import Dataset
+```{r}
+lemis<-read_csv("lemis.csv")
+```
+
+
+Take a quick overview of which taxa has the most observations
+```{r}
+str(lemis)
+summary(lemis)
+
+
+lemis %>%
+  count(taxa)
+
+
+```
+I am choosing fish as a taxa because it appears to have enough data to work with.
+
+Now I will create a new dataset only looking at the fish taxa, looking it over 
+before I begin any plotting or manipulation.
+```{r}
+
+
+fish <- lemis %>%
+  filter(taxa=="fish")
+
+str(fish)
+summary(fish)
+
+```
+Now I want to narrow my dataset to only observe value (of import) and import year within the fish taxa. 
+```{r}
+smfish <-fish %>%
+  select(taxa, value, shipment_year)
+  
+skim(smfish)
+summary(smfish)
+
+
+
+```
+
+I want to know if there were certain years when fish imports slowed or skyrocketed, basically how has the fish trade varied over time? 
+
+Looking at the number of fish imports per year, we have the following plot.
+```{r}
+ggplot(smfish, aes(shipment_year)) + geom_bar() + xlab ("Year") + ylab ("Number of Fish Shipments to US") + ggtitle(label="Imported Fish Shipments Between 2000-2014", subtitle="Katy Baker")
+
+```
+
+
+Now I wanted to look at the range of declared value of the fish shipments to the US over time. 
+I wondered if the fish trade is dominated by few, expensive fish products, or many, lower cost fish products. 
+
+I use the jitter to reduce overplotting.
+
+```{r}
+ggplot(smfish, aes(taxa, value)) + geom_jitter(height=0, width= .5, alpha=.7, size=1, color="blue")
+
+```
+
+
+I wanted to see what that outlier was. So I used the filter function to look
+at all the observations over 10 million dollars.
+
+```{r}
+outlier<-lemis %>%
+  filter(value>1e7 & taxa=="fish") %>%
+  arrange(value)
+outlier
+```
+
+Turns out the most extreme value was the import of just one Tiger Shark from 
+Australia worth 85 million dollars.
+I thought it could be in error so I did a quick google on the seller (forein_co)
+and apparently it was a piece of art by Damien Hirst called The Physical 
+Impossibility of Death in the Mind of Someone Living (1991).
+
+It was literally a tiger shark preserved in a glass tank of formaldehyde. 
+For 85 million dollars. 
+
+Not only that but according to this article,  https://www.thegentlemansjournal.com/5-hedge-fund-billionaire-steve-cohens-extravagant-purchases/
+the buyer, a hedge-fund billionaire, purchased it in 2006 and didn't even have it 
+shipped to the US until 2012, per LEMIS.
+
+For the purpose of this data exploration we are not going to include this 
+ridiculous display of wealth which I am obviously jealous of and which as made me
+rethink all of my life choices.
+
+We are going to include the 10 million dollar caviar, though, since it is actually
+relevant to this study, albeit ridiculous as well. 
+
+I create a new dataframe and use the filter function to only include observations 
+where the value is less than 20M
+
+```{r}
+smsmfish<- smfish %>%
+  filter(value<2e7) 
+  
+```
+
+
+Then I wanted to also get rid of the '0' value, so I will use the filter function
+in the same way after I make sure there are no values between 0 and 1
+
+```{r}
+outlier2<-lemis %>%
+  filter(value<1 & taxa=="fish") %>%
+  arrange(desc(value))
+outlier2
+
+smsmfish<- smfish %>%
+  filter(between(value,1, 2e7))
+
+
+skim(smsmfish)
+
+```
+
+
+Then plotting again except with more extreme jitter to reduce overplotting
+
+```{r}
+ggplot(smsmfish, aes(taxa, value)) + geom_jitter(height=0, width= .5, alpha=.7, size=1, color="blue") + xlab ("") + ylab ("Value of Fish Shipments") + ggtitle(label="Declared Value of Imported Fish Shipments Between 2000-2014", subtitle="Katy Baker")
+
+
+smsmfish<- smfish %>%
+  filter(between(value,5, 2500))
+
+ggplot(smsmfish, aes(taxa, value)) + geom_boxplot(color="blue") + xlab ("") + ylab ("Value of Fish Shipments") + ggtitle(label="Declared Value of Imported Fish Shipments Under $2500 Between 2000-2014", subtitle="Katy Baker")
+
+```
+
+
+RESULTS
+
+
+
+While the fish trade seems to be relatively stable and did not have much 
+volatility, there did appear to be a momentary decline in imported fish from 2006-2010.
+Without looking at other variables such as species, it is difficult to begin to 
+ask why this might be. For instance, if the decline overall was proportional to 
+the decline of imports for a certain species, say tuna, then we might be able to
+distinguish whether the downward trend is fish imports overall or just one sector.
+
+The EDA on declared value of fish shipments to the US did, however, prove to be 
+informative in its own right. It seems clear that the fish import trade is dominated 
+by smaller valued imports. There are very expensive fish/products being imported, 
+and although they may make up a significant portion of the overall value of the 
+fish trade, the average shipment is only valued at 0.03% of the highest valued
+import we considered (the 10 million dollar caviar). It was because of this 
+extremely right-skewed data that a histogram was not a good choice for depicting 
+the spread of values. 
+
+And who doesn't love exploring data to uncover the ultimate American dream: 
+getting so filthy rich off an imaginary construct that you become bored with
+spending money and resort to buying obscure pieces of taxidermy someone deemed
+art that - no doubt - was a royal pain to ship.
